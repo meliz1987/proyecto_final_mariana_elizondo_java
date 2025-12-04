@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel CRUD Amigurumis</title>
+
+    <!-- BOOTSTRAP -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #e664d1, #7a2be2);
+            min-height: 100vh;
+            padding: 40px;
+            color: #fff;
+            font-family: 'Segoe UI';
+        }
+
+        .container-box {
+            background: #ffffffcc;
+            border-radius: 18px;
+            padding: 25px;
+            color: #333;
+            backdrop-filter: blur(3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 25px;
+            color: #4f4ba1;
+            text-shadow: 0 0 4px #ffffff80;
+        }
+
+        .btn-custom {
+            background-color: #4f4ba1;
+            color: white;
+            border-radius: 8px;
+        }
+
+        .btn-custom:hover {
+            background-color: #3d3a82;
+            color: #fff;
+        }
+
+        table thead {
+            background: #4f4ba1;
+            color: white;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="container container-box">
+
+    <h1>Administración de Amigurumis</h1>
+
+    <!-- FORMULARIO -->
+    <form id="formAmigurumi" class="row g-3 mb-4">
+        <input type="hidden" id="id">
+
+        <div class="col-md-4">
+            <label class="form-label">Descripción</label>
+            <input type="text" id="descripcion" class="form-control" required>
+        </div>
+
+        <div class="col-md-2">
+            <label class="form-label">Precio</label>
+            <input type="number" step="0.01" id="precio" class="form-control" required>
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label">Categoría</label>
+            <select id="categoria" class="form-select" required></select>
+        </div>
+
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-custom w-100" type="submit">Guardar</button>
+        </div>
+    </form>
+
+    <!-- BUSCADOR -->
+    <div class="input-group mb-3">
+        <span class="input-group-text">Buscar</span>
+        <input id="buscar" type="text" class="form-control" placeholder="Descripción o categoría...">
+    </div>
+
+    <!-- PAGINACIÓN -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <button class="btn btn-secondary btn-sm" id="prev">Anterior</button>
+        <span id="pageInfo"></span>
+        <button class="btn btn-secondary btn-sm" id="next">Siguiente</button>
+    </div>
+
+    <!-- TABLA -->
+    <table class="table table-striped table-hover">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Descripción</th>
+            <th>Precio</th>
+            <th>Categoría</th>
+            <th>Acciones</th>
+        </tr>
+        </thead>
+        <tbody id="tabla"></tbody>
+    </table>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast-container">
+    <div id="liveToast" class="toast text-bg-success border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="toastMsg"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                    data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<!-- BOOTSTRAP JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- SCRIPT CRUD -->
+<script>
+const api = "http://localhost:8080/api/amigurumis";
+const tabla = document.querySelector("#tabla");
+const buscarInput = document.getElementById("buscar");
+const toastLiveExample = document.getElementById('liveToast');
+const toastMsg = document.getElementById("toastMsg");
+const toast = bootstrap.Toast.getOrCreateInstance(toastLiveExample);
+
+let datosOriginales = [];
+let datosFiltrados = [];
+let paginaActual = 1;
+const porPagina = 5;
+
+function showToast(msg) {
+    toastMsg.innerText = msg;
+    toast.show();
+}
+
+// CATEGORÍAS
+const categorias = [
+    { id: 1, nombre: "Animales" },
+    { id: 2, nombre: "Muñecos" },
+    { id: 3, nombre: "Llaveros" },
+    { id: 4, nombre: "Plantas" },
+];
+
+const select = document.getElementById("categoria");
+categorias.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = c.nombre;
+    select.appendChild(opt);
+});
+
+// ---------------- CARGAR DATOS ----------------
+async function cargarDatos() {
+    const res = await fetch(api);
+    datosOriginales = await res.json();
+    filtrarDatos();
+}
+
+function filtrarDatos() {
+    const texto = buscarInput.value.toLowerCase();
+
+    datosFiltrados = datosOriginales.filter(a =>
+        a.descripcion.toLowerCase().includes(texto) ||
+        a.categoria?.nombre.toLowerCase().includes(texto)
+    );
+
+    paginaActual = 1;
+    renderTabla();
+}
+
+function renderTabla() {
+    const inicio = (paginaActual - 1) * porPagina;
+    const pagina = datosFiltrados.slice(inicio, inicio + porPagina);
+
+    tabla.innerHTML = "";
+    pagina.forEach(a => {
+        tabla.innerHTML += `
+            <tr>
+                <td>${a.id}</td>
+                <td>${a.descripcion}</td>
+                <td>$${a.precio}</td>
+                <td>${a.categoria?.nombre ?? "-"}</td>
+                <td>
+                    <button class="btn btn-warning btn-sm" onclick="editar(${a.id})">Editar</button>
+                    <button class="btn btn-danger btn-sm" onclick="eliminar(${a.id})">Eliminar</button>
+                </td>
+            </tr>
+        `;
+    });
+
+    const total = Math.ceil(datosFiltrados.length / porPagina);
+    document.getElementById("pageInfo").innerText = `Página ${paginaActual} de ${total}`;
+
+    prev.disabled = paginaActual === 1;
+    next.disabled = paginaActual === total;
+}
+
+document.getElementById("prev").onclick = () => { paginaActual--; renderTabla(); };
+document.getElementById("next").onclick = () => { paginaActual++; renderTabla(); };
+
+buscarInput.addEventListener("input", filtrarDatos);
+
+// ---------------- CRUD ----------------
+document.getElementById("formAmigurumi").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const obj = {
+        descripcion: descripcion.value,
+        precio: parseFloat(precio.value),
+        categoria: { id: parseInt(categoria.value) }
+    };
+
+    let metodo = "POST";
+    let url = api;
+
+    if (id.value) {
+        metodo = "PUT";
+        url = `${api}/${id.value}`;
+    }
+
+    await fetch(url, {
+        method: metodo,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(obj)
+    });
+
+    showToast("Amigurumi guardado correctamente");
+    cargarDatos();
+    e.target.reset();
+});
+
+async function editar(idProd) {
+    const res = await fetch(`${api}/${idProd}`);
+    const a = await res.json();
+
+    id.value = a.id;
+    descripcion.value = a.descripcion;
+    precio.value = a.precio;
+    categoria.value = a.categoria.id;
+}
+
+async function eliminar(idProd) {
+    await fetch(`${api}/${idProd}`, { method: "DELETE" });
+    showToast("Amigurumi eliminado");
+    cargarDatos();
+}
+
+cargarDatos();
+</script>
+</body>
+</html>
