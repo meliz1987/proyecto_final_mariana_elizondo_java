@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
     <title>Panel CRUD Amigurumis</title>
 
     <!-- BOOTSTRAP -->
@@ -25,7 +28,7 @@
             box-shadow: 0 8px 20px rgba(0,0,0,0.2);
         }
 
-        h1 {
+        h1,h2 {
             text-align: center;
             font-weight: bold;
             margin-bottom: 25px;
@@ -54,7 +57,6 @@
             top: 20px;
             right: 20px;
         }
-
     </style>
 </head>
 
@@ -65,22 +67,48 @@
     <h1>Administración de Amigurumis</h1>
 
     <!-- FORMULARIO -->
+     </br>
+     <h2>Agregar Amigurumis</h2>
+    </br>
+
     <form id="formAmigurumi" class="row g-3 mb-4">
         <input type="hidden" id="id">
 
         <div class="col-md-4">
             <label class="form-label">Descripción</label>
+             <span 
+                class="ms-2 text-muted" 
+                data-bs-toggle="tooltip" 
+                data-bs-placement="right" 
+                title="Este campo es obligatorio. Debe describir brevemente el amigurumi."
+                style="cursor: pointer;"
+            >
+                <i class="bi bi-info-circle"></i>
+            </span>
             <input type="text" id="descripcion" class="form-control" required>
+            
         </div>
 
         <div class="col-md-2">
             <label class="form-label">Precio</label>
+            <span 
+                class="ms-2 text-muted" 
+                data-bs-toggle="tooltip" 
+                data-bs-placement="right" 
+                title="Campo obligatorio. Solo números."
+                style="cursor: pointer;"
+            >
+                <i class="bi bi-info-circle"></i>
+            </span>
             <input type="number" step="0.01" id="precio" class="form-control" required>
         </div>
 
         <div class="col-md-3">
             <label class="form-label">Categoría</label>
-            <select id="categoria" class="form-select" required></select>
+            <select id="categoria" class="form-select" required>
+                 <option value="" selected disabled>Seleccionar</option>
+            </select>
+            
         </div>
 
         <div class="col-md-3 d-flex align-items-end">
@@ -88,18 +116,17 @@
         </div>
     </form>
 
+    </br>
+
+     <h2>Listado de Amigurumis</h2>
+
     <!-- BUSCADOR -->
     <div class="input-group mb-3">
         <span class="input-group-text">Buscar</span>
         <input id="buscar" type="text" class="form-control" placeholder="Descripción o categoría...">
     </div>
 
-    <!-- PAGINACIÓN -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <button class="btn btn-secondary btn-sm" id="prev">Anterior</button>
-        <span id="pageInfo"></span>
-        <button class="btn btn-secondary btn-sm" id="next">Siguiente</button>
-    </div>
+    </br>
 
     <!-- TABLA -->
     <table class="table table-striped table-hover">
@@ -114,8 +141,19 @@
         </thead>
         <tbody id="tabla"></tbody>
     </table>
-
+    <p id="noResultsMsg" class="text-center mt-3 fw-bold" style="display:none; color:#4f4ba1;">
+    <i class="bi bi-exclamation-circle"></i>
+    No se encontraron amigurumis que coincidan con la búsqueda.
+</p>
+ <!-- PAGINACIÓN -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <button class="btn btn-secondary btn-sm" id="prev">Anterior</button>
+        <span id="pageInfo"></span>
+        <button class="btn btn-secondary btn-sm" id="next">Siguiente</button>
+    </div>
 </div>
+
+
 
 <!-- TOAST -->
 <div class="toast-container">
@@ -190,6 +228,19 @@ function renderTabla() {
     const pagina = datosFiltrados.slice(inicio, inicio + porPagina);
 
     tabla.innerHTML = "";
+
+    // Mostrar mensaje si no hay resultados
+    const msg = document.getElementById("noResultsMsg");
+    if (datosFiltrados.length === 0) {
+        msg.style.display = "block";
+        document.getElementById("pageInfo").innerText = "";
+        prev.disabled = true;
+        next.disabled = true;
+        return;
+    } else {
+        msg.style.display = "none";
+    }
+
     pagina.forEach(a => {
         tabla.innerHTML += `
             <tr>
@@ -212,6 +263,7 @@ function renderTabla() {
     next.disabled = paginaActual === total;
 }
 
+
 document.getElementById("prev").onclick = () => { paginaActual--; renderTabla(); };
 document.getElementById("next").onclick = () => { paginaActual++; renderTabla(); };
 
@@ -219,6 +271,23 @@ buscarInput.addEventListener("input", filtrarDatos);
 
 // ---------------- CRUD ----------------
 document.getElementById("formAmigurumi").addEventListener("submit", async e => {
+    // VALIDAR DUPLICADOS (misma descripcion)
+const nombreIngresado = descripcion.value.trim().toLowerCase();
+
+// si es edicion, permitimos que el nombre sea el mismo del artículo actual
+const esEdicion = id.value !== "";
+
+const existeRepetido = datosOriginales.some(a =>
+    a.descripcion.trim().toLowerCase() === nombreIngresado &&
+    (!esEdicion || a.id != id.value)
+);
+
+if (existeRepetido) {
+    showToast("Ya existe un amigurumi con esa descripción.");
+    return; // NO continua con el guardado
+}
+
+
     e.preventDefault();
 
     const obj = {
@@ -263,6 +332,12 @@ async function eliminar(idProd) {
 }
 
 cargarDatos();
+
 </script>
+<script>
+  const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+  const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+</script>
+
 </body>
 </html>
